@@ -17,7 +17,7 @@ public class MainController {
   public MoviesDto hello() {
     MoviesDto movies = new MoviesDto();
     MovieDto movieDto = new
-        MovieDto(1,"testMovie","https://yts.mx/assets/images/movies/the_pastor_2024/background.jpg","summaryTest");
+        MovieDto(1,"testMovi","https://cdn.pixabay.com/photo/2013/03/01/18/40/crispus-87928_1280.jpg","summaryTest");
         List<MovieDto> moviesList = new ArrayList<>();
     moviesList.add(movieDto);
     movies.setMovies(moviesList);
