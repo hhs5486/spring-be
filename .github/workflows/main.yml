@@ -1,1 +1,61 @@
 
+name: auto-deploy with docker
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-job:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: git 리파지토리 복사
+        uses: actions/checkout@v4
+
+      - name: jdk 설치
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      #      - name: application.yml 복사
+
+      - name: application 실행파일 빌드
+        run: chmod +x ./gradlew && ./gradlew clean build
+
+      - name: docker 이미지 빌드
+        run: docker build -t ${{ secrets.DOCKER_USER }}/springboot_test:test.
+
+      - name: docker login
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+
+      - name: docker hub 에 push 하기
+        run: docker push ${{ secrets.DOCKER_USER }}/springboot_test:test
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-job
+
+    steps:
+      - name: SSH 로 EC2 접속하기
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{secrets.EC2_HOST}}
+          username: ${{secrets.EC2_USERNAME}}
+          key: ${{secrets.EC2_PRIVATE_KEY}}
+          script_stop: true
+          script: |
+            # dockerhub 에 토큰을 가지고 로그인
+            echo "${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}" | \
+            docker login -u ${{ secrets.DOCKER_USER }} --password-stdin
+            # 기존에 컨테이너 중지 & 삭제
+            sudo docker stop web-app || true
+            sudo docker rm web-app || true
+            # docker 이미지 풀
+            sudo docker pull ${{ secrets.DOCKER_USER }}/springboot_test:test
+            # 새로운 컨테이너 실행
+            sudo docker run -d -p 8080:8080 --name web-app ${{ secrets.DOCKER_USER }}/springboot_test:test
